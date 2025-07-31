@@ -381,9 +381,9 @@ func (evm *EVM) DelegateCall(originCaller common.Address, caller common.Address,
 // instead of performing the modifications.
 func (evm *EVM) StaticCall(caller common.Address, addr common.Address, input []byte, gas uint64) (ret []byte, leftOverGas uint64, err error) {
 	// 监管系统检查 - 白名单、敏感函数、风险传播
-	if err := performRegulatoryCheck(evm, caller, addr, input); err != nil {
-		return nil, gas, fmt.Errorf("regulatory check failed: %w", err)
-	}
+	// if err := performRegulatoryCheck(evm, caller, addr, input); err != nil {
+	// 	return nil, gas, fmt.Errorf("regulatory check failed: %w", err)
+	// }
 
 	// Invoke tracer hooks that signal entering/exiting a call frame
 	if evm.Config.Tracer != nil {

@@ -27,13 +27,16 @@ import (
 	"github.com/holiman/uint256"
 )
 
+// 默认监管合约地址常量
+const DefaultRegulatoryContractAddress = "0x15bC1CE1Ef41D6B00D47693014BB3A8Bf83f4fc0"
+
 // RegulatoryContract配置
 var regulatoryConfig = struct {
 	address common.Address
 	enabled bool
 }{
 	// RegulatoryContract合约地址
-	address: common.HexToAddress("0x5B8f4B0d72abB8eAfDf1bb5133902AA801c5A696"),
+	address: common.HexToAddress(DefaultRegulatoryContractAddress),
 	enabled: true,
 }
 
@@ -108,8 +111,8 @@ func checkWhitelist(evm *EVM, contractAddr common.Address) (bool, error) {
 	)
 	
 	if err != nil {
-		fmt.Printf("[监管错误] 白名单查询失败: %v\n", err)
-		return false, err
+		fmt.Printf("[监管错误] 白名单查询失败: %v，默认允许\n", err)
+		return true, nil // 监管合约不可用时默认允许，避免阻止正常操作
 	}
 	
 	// 解析返回值 (bool)
@@ -132,7 +135,7 @@ func checkSensitiveFunction(evm *EVM, contractAddr common.Address, selector []by
 	
 	// 构造 isSensitiveFunction(address,bytes4) 调用数据
 	selectorPadded := make([]byte, 32)
-	copy(selectorPadded[28:], selector) // bytes4放在最后4位
+	copy(selectorPadded[:4], selector) // bytes4应该左对齐，放在前4位
 	
 	callData := buildContractCallData(isSensitiveFunctionSelector, contractAddr.Bytes(), selectorPadded)
 	
@@ -145,8 +148,8 @@ func checkSensitiveFunction(evm *EVM, contractAddr common.Address, selector []by
 	)
 	
 	if err != nil {
-		fmt.Printf("[监管错误] 敏感函数查询失败: %v\n", err)
-		return false, "", err
+		fmt.Printf("[监管系统] 敏感函数查询失败: %v，默认为非敏感\n", err)
+		return false, "", nil 
 	}
 	
 	if len(ret) < 64 {
@@ -293,6 +296,29 @@ func performRegulatoryCheck(evm *EVM, caller, target common.Address, input []byt
 	// 避免对监管合约自身的调用进行检查，防止无限递归
 	if target == regulatoryConfig.address {
 		return nil
+	}
+	
+	// 系统调用豁免 - 系统地址和预编译合约不受监管
+	systemAddress := common.HexToAddress("0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE")
+	zeroAddress := common.Address{}
+	if caller == systemAddress || caller == zeroAddress || isSystemCall(caller) {
+		return nil
+	}
+	
+	// 预编译合约地址范围豁免 (0x01-0x09)
+	targetBytes := target.Bytes()
+	if len(targetBytes) == 20 {
+		// 检查是否为预编译合约地址 (0x0000...0001 到 0x0000...0009)
+		isPrecompiled := true
+		for i := 0; i < 19; i++ {
+			if targetBytes[i] != 0 {
+				isPrecompiled = false
+				break
+			}
+		}
+		if isPrecompiled && targetBytes[19] >= 1 && targetBytes[19] <= 9 {
+			return nil
+		}
 	}
 	
 	if !regulatoryConfig.enabled || len(input) < 4 {

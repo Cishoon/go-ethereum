@@ -36,7 +36,7 @@ func GetRegulatoryContractInfo() (address string, enabled bool) {
 func SetRegulatoryEnabled(enabled bool) {
 	if enabled && regulatoryConfig.address == (common.Address{}) {
 		// 如果没有设置地址但要启用，使用默认地址
-		regulatoryConfig.address = common.HexToAddress("0x5B8f4B0d72abB8eAfDf1bb5133902AA801c5A696")
+		regulatoryConfig.address = common.HexToAddress(DefaultRegulatoryContractAddress)
 	}
 	regulatoryConfig.enabled = enabled
 }
