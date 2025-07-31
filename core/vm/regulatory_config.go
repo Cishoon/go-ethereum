@@ -20,14 +20,28 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// 配置StringTracker合约地址的公共接口
-func ConfigureStringTracker(address string) error {
+// 配置RegulatoryContract合约地址的公共接口
+func ConfigureRegulatoryContract(address string) error {
 	addr := common.HexToAddress(address)
-	SetStringTrackerAddress(addr)
+	SetRegulatoryContractAddress(addr)
 	return nil
 }
 
-// 获取当前StringTracker配置状态
-func GetStringTrackerStatus() (address string, enabled bool) {
-	return stringTrackerConfig.address.Hex(), stringTrackerConfig.enabled
+// 获取当前RegulatoryContract配置状态
+func GetRegulatoryContractInfo() (address string, enabled bool) {
+	return GetRegulatoryContractStatus()
+}
+
+// 启用/禁用监管功能
+func SetRegulatoryEnabled(enabled bool) {
+	if enabled && regulatoryConfig.address == (common.Address{}) {
+		// 如果没有设置地址但要启用，使用默认地址
+		regulatoryConfig.address = common.HexToAddress("0x5B8f4B0d72abB8eAfDf1bb5133902AA801c5A696")
+	}
+	regulatoryConfig.enabled = enabled
+}
+
+// 检查监管功能是否启用
+func IsRegulatoryEnabled() bool {
+	return regulatoryConfig.enabled
 }

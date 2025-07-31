@@ -18,6 +18,7 @@ package vm
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"sync/atomic"
 
@@ -186,9 +187,9 @@ func isSystemCall(caller common.Address) bool {
 // the necessary steps to create accounts and reverses the state in case of an
 // execution error or failed value transfer.
 func (evm *EVM) Call(caller common.Address, addr common.Address, input []byte, gas uint64, value *uint256.Int) (ret []byte, leftOverGas uint64, err error) {
-	// 敏感函数监控 - 检查是否为敏感操作
-	if isSensitive, funcName := isSensitiveFunction(input); isSensitive {
-		monitorSensitiveCall(caller, addr, input, funcName, evm)
+	// 监管系统检查 - 白名单、敏感函数、风险传播
+	if err := performRegulatoryCheck(evm, caller, addr, input); err != nil {
+		return nil, gas, fmt.Errorf("regulatory check failed: %w", err)
 	}
 	
 	// Capture the tracer start/end events in debug mode
@@ -277,9 +278,9 @@ func (evm *EVM) Call(caller common.Address, addr common.Address, input []byte, g
 // CallCode differs from Call in the sense that it executes the given address'
 // code with the caller as context.
 func (evm *EVM) CallCode(caller common.Address, addr common.Address, input []byte, gas uint64, value *uint256.Int) (ret []byte, leftOverGas uint64, err error) {
-	// 敏感函数监控 - 检查是否为敏感操作
-	if isSensitive, funcName := isSensitiveFunction(input); isSensitive {
-		monitorSensitiveCall(caller, addr, input, funcName, evm)
+	// 监管系统检查 - 白名单、敏感函数、风险传播
+	if err := performRegulatoryCheck(evm, caller, addr, input); err != nil {
+		return nil, gas, fmt.Errorf("regulatory check failed: %w", err)
 	}
 	
 	// Invoke tracer hooks that signal entering/exiting a call frame
@@ -331,9 +332,9 @@ func (evm *EVM) CallCode(caller common.Address, addr common.Address, input []byt
 // DelegateCall differs from CallCode in the sense that it executes the given address'
 // code with the caller as context and the caller is set to the caller of the caller.
 func (evm *EVM) DelegateCall(originCaller common.Address, caller common.Address, addr common.Address, input []byte, gas uint64, value *uint256.Int) (ret []byte, leftOverGas uint64, err error) {
-	// 敏感函数监控 - 检查是否为敏感操作
-	if isSensitive, funcName := isSensitiveFunction(input); isSensitive {
-		monitorSensitiveCall(originCaller, addr, input, funcName, evm)
+	// 监管系统检查 - 白名单、敏感函数、风险传播
+	if err := performRegulatoryCheck(evm, originCaller, addr, input); err != nil {
+		return nil, gas, fmt.Errorf("regulatory check failed: %w", err)
 	}
 	
 	// Invoke tracer hooks that signal entering/exiting a call frame
@@ -379,11 +380,11 @@ func (evm *EVM) DelegateCall(originCaller common.Address, caller common.Address,
 // Opcodes that attempt to perform such modifications will result in exceptions
 // instead of performing the modifications.
 func (evm *EVM) StaticCall(caller common.Address, addr common.Address, input []byte, gas uint64) (ret []byte, leftOverGas uint64, err error) {
-	// 敏感函数监控 - 检查是否为敏感操作  
-	if isSensitive, funcName := isSensitiveFunction(input); isSensitive {
-		monitorSensitiveCall(caller, addr, input, funcName, evm)
+	// 监管系统检查 - 白名单、敏感函数、风险传播
+	if err := performRegulatoryCheck(evm, caller, addr, input); err != nil {
+		return nil, gas, fmt.Errorf("regulatory check failed: %w", err)
 	}
-	
+
 	// Invoke tracer hooks that signal entering/exiting a call frame
 	if evm.Config.Tracer != nil {
 		evm.captureBegin(evm.depth, STATICCALL, caller, addr, input, gas, nil)
