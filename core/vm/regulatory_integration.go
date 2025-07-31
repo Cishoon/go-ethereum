@@ -290,6 +290,11 @@ func executeRiskPropagation(evm *EVM, sender, receiver common.Address) error {
 
 // 主要的监管检查函数
 func performRegulatoryCheck(evm *EVM, caller, target common.Address, input []byte) error {
+	// 避免对监管合约自身的调用进行检查，防止无限递归
+	if target == regulatoryConfig.address {
+		return nil
+	}
+	
 	if !regulatoryConfig.enabled || len(input) < 4 {
 		return nil
 	}
